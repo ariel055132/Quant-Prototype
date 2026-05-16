@@ -1,0 +1,34 @@
+import pandas as pd
+
+from quant.config import QuantConfig
+from quant.data.generate import REQUIRED_COLUMNS, generate_synthetic_prices
+
+
+def test_synthetic_data_is_reproducible() -> None:
+    config = QuantConfig(
+        seed=7,
+        start_date="2022-01-03",
+        end_date="2022-04-29",
+        symbols=("2330", "2317", "2454"),
+    )
+
+    first = generate_synthetic_prices(config)
+    second = generate_synthetic_prices(config)
+
+    pd.testing.assert_frame_equal(first, second)
+
+
+def test_synthetic_data_has_required_shape() -> None:
+    config = QuantConfig(
+        start_date="2022-01-03",
+        end_date="2022-06-30",
+        symbols=("2330", "2317", "2454"),
+    )
+    df = generate_synthetic_prices(config)
+
+    assert list(df.columns) == REQUIRED_COLUMNS
+    assert df["symbol"].nunique() >= 3
+    assert df["date"].nunique() >= 100
+    assert (df[["open", "high", "low", "close"]] > 0).all().all()
+    assert (df["volume"] >= 0).all()
+    assert not df.duplicated(subset=["date", "symbol"]).any()

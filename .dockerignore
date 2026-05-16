@@ -1,0 +1,16 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+venv
+.DS_Store
+data/raw/*.parquet
+data/processed/*.parquet
+data/features/*.parquet
+data/factor_evaluation/*.parquet
+data/factor_evaluation/*.json
+data/signals/*.parquet
+data/backtests/*.parquet
+data/backtests/*.json

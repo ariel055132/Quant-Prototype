@@ -1,0 +1,32 @@
+services:
+  quant:
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: base
+    image: localhost/quant-prototype:latest
+    volumes:
+      - ./:/app
+    command: ["quant", "pipeline", "run"]
+
+  quant-test:
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: test
+    image: localhost/quant-prototype:test
+    volumes:
+      - ./:/app
+    command: ["pytest", "-q"]
+
+  quant-shell:
+    build:
+      context: .
+      dockerfile: Containerfile
+      target: base
+    image: localhost/quant-prototype:latest
+    volumes:
+      - ./:/app
+    entrypoint: ["/bin/bash"]
+    stdin_open: true
+    tty: true

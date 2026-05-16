@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
+
+# Generated research artifacts
+data/raw/*.parquet
+data/processed/*.parquet
+data/features/*.parquet
+data/factor_evaluation/*.json
+data/factor_evaluation/*.parquet
+data/signals/*.parquet
+data/backtests/*.json
+data/backtests/*.parquet
