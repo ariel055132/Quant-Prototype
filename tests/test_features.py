@@ -1,3 +1,5 @@
+"""Verify factor calculations remain grouped by symbol without leakage."""
+
 import numpy as np
 import pandas as pd
 
@@ -5,6 +7,17 @@ from quant.features.build import build_factors
 
 
 def test_factor_calculation_grouped_by_symbol() -> None:
+    """Verify rolling factor logic is isolated within each symbol group.
+
+    Args:
+        None.
+
+    Returns:
+        None: Assertion-based test.
+
+    Raises:
+        AssertionError: If factor calculations leak across symbols.
+    """
     dates = pd.bdate_range("2024-01-01", periods=40)
 
     a = pd.DataFrame(

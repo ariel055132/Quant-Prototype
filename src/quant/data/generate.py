@@ -1,5 +1,7 @@
 """Synthetic Taiwan-equity-style OHLCV data generation."""
 
+# File role: generate reproducible synthetic market data and persist raw prices.
+
 from __future__ import annotations
 
 import numpy as np
@@ -12,7 +14,17 @@ REQUIRED_COLUMNS = ["date", "symbol", "open", "high", "low", "close", "volume"]
 
 
 def generate_synthetic_prices(config: QuantConfig) -> pd.DataFrame:
-    """Generate reproducible synthetic daily OHLCV data."""
+    """Generate reproducible synthetic daily OHLCV data.
+
+    Args:
+        config: Runtime configuration containing seed, date range, and symbols.
+
+    Returns:
+        pd.DataFrame: Synthetic OHLCV rows sorted by symbol and date.
+
+    Raises:
+        None.
+    """
     rng = np.random.default_rng(config.seed)
     dates = pd.bdate_range(start=config.start_date, end=config.end_date)
 
@@ -56,7 +68,17 @@ def generate_synthetic_prices(config: QuantConfig) -> pd.DataFrame:
 
 
 def run(config: QuantConfig) -> pd.DataFrame:
-    """Execute data generation stage and write the raw parquet artifact."""
+    """Run data generation and persist raw prices.
+
+    Args:
+        config: Runtime configuration with output directory settings.
+
+    Returns:
+        pd.DataFrame: Generated raw prices dataframe.
+
+    Raises:
+        None.
+    """
     config.ensure_data_dirs()
     df = generate_synthetic_prices(config)
     write_parquet(df, config.raw_prices_path)

@@ -1,5 +1,7 @@
 """Weekly position selection based on momentum and filters."""
 
+# File role: derive weekly rebalance dates and choose top-N target positions.
+
 from __future__ import annotations
 
 import numpy as np
@@ -7,14 +9,35 @@ import pandas as pd
 
 
 def weekly_rebalance_dates(dates: pd.Series) -> pd.Series:
-    """Use last available trading date for each Friday-anchored week."""
+    """Compute weekly rebalance dates using Friday-anchored periods.
+
+    Args:
+        dates: Series of trading dates.
+
+    Returns:
+        pd.Series: Last available trading date for each week.
+
+    Raises:
+        None.
+    """
     frame = pd.DataFrame({"date": pd.to_datetime(dates).drop_duplicates().sort_values()})
     frame["week"] = frame["date"].dt.to_period("W-FRI")
     return frame.groupby("week", as_index=False)["date"].max()["date"]
 
 
 def select_weekly_positions(filtered_factors: pd.DataFrame, top_n: int) -> pd.DataFrame:
-    """Select top-N eligible symbols each rebalance week with equal weights."""
+    """Select top-N eligible symbols per weekly rebalance date.
+
+    Args:
+        filtered_factors: Factor dataframe including eligible and momentum_score columns.
+        top_n: Maximum number of symbols to select each rebalance date.
+
+    Returns:
+        pd.DataFrame: Weekly selected positions with rank and target weights.
+
+    Raises:
+        None.
+    """
     frame = filtered_factors.copy()
     frame["date"] = pd.to_datetime(frame["date"])
     frame = frame.sort_values(["date", "symbol"]).reset_index(drop=True)

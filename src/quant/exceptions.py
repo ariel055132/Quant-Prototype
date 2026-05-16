@@ -1,5 +1,7 @@
 """Project-specific exceptions."""
 
+# File role: define custom exception types used across the pipeline.
+
 
 class QuantError(RuntimeError):
     """Base exception for quant pipeline failures."""

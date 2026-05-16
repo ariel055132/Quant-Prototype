@@ -1,5 +1,7 @@
 """Terminal report output for performance and factor diagnostics."""
 
+# File role: load summary artifacts and print concise report output.
+
 from __future__ import annotations
 
 from quant.config import QuantConfig
@@ -7,14 +9,34 @@ from quant.io_utils import read_json
 
 
 def build_report(config: QuantConfig) -> dict:
-    """Collect backtest and factor-evaluation summaries for display."""
+    """Load summary artifacts needed for terminal reporting.
+
+    Args:
+        config: Runtime configuration with report artifact paths.
+
+    Returns:
+        dict: Dictionary with performance and factor summary payloads.
+
+    Raises:
+        FileNotFoundError: If summary artifacts are missing.
+    """
     performance = read_json(config.backtests_dir / "summary.json")
     factor = read_json(config.factor_eval_dir / "momentum_score_summary.json")
     return {"performance": performance, "factor": factor}
 
 
 def run(config: QuantConfig) -> dict:
-    """Execute report stage and print concise summaries."""
+    """Print report summaries and return the loaded payload.
+
+    Args:
+        config: Runtime configuration with report artifact paths.
+
+    Returns:
+        dict: Dictionary with performance and factor summary payloads.
+
+    Raises:
+        FileNotFoundError: If required report artifacts are missing.
+    """
     payload = build_report(config)
     perf = payload["performance"]
     fac = payload["factor"]

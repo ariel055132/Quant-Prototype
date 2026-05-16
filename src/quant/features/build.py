@@ -1,5 +1,7 @@
 """Build price-based factors from processed OHLCV data."""
 
+# File role: construct rolling price/volume factors and momentum score features.
+
 from __future__ import annotations
 
 import numpy as np
@@ -11,7 +13,17 @@ from quant.io_utils import read_parquet_required, write_parquet
 
 
 def build_factors(prices: pd.DataFrame) -> pd.DataFrame:
-    """Compute grouped rolling factors without look-ahead."""
+    """Compute rolling factor columns without look-ahead bias.
+
+    Args:
+        prices: Processed OHLCV dataframe containing date, symbol, close, and volume.
+
+    Returns:
+        pd.DataFrame: Input rows enriched with factor columns.
+
+    Raises:
+        EmptyDatasetError: If the factor output is unexpectedly empty.
+    """
     ordered = prices.sort_values(["symbol", "date"]).reset_index(drop=True).copy()
     grouped = ordered.groupby("symbol", group_keys=False)
 
@@ -41,7 +53,18 @@ def build_factors(prices: pd.DataFrame) -> pd.DataFrame:
 
 
 def run(config: QuantConfig) -> pd.DataFrame:
-    """Execute factor build stage and write factors parquet."""
+    """Run feature engineering stage and persist factors parquet.
+
+    Args:
+        config: Runtime configuration with processed/factor data paths.
+
+    Returns:
+        pd.DataFrame: Factor dataframe with engineered columns.
+
+    Raises:
+        FileNotFoundError: If processed prices artifact is missing.
+        EmptyDatasetError: If input or output factor dataset is empty.
+    """
     config.ensure_data_dirs()
     processed = read_parquet_required(config.processed_prices_path)
     factors = build_factors(processed)

@@ -1,3 +1,5 @@
+"""Validate synthetic data generation contracts and reproducibility."""
+
 import pandas as pd
 
 from quant.config import QuantConfig
@@ -5,6 +7,17 @@ from quant.data.generate import REQUIRED_COLUMNS, generate_synthetic_prices
 
 
 def test_synthetic_data_is_reproducible() -> None:
+    """Ensure same seed and config generate identical synthetic data.
+
+    Args:
+        None.
+
+    Returns:
+        None: Assertion-based test.
+
+    Raises:
+        AssertionError: If generated dataframes differ.
+    """
     config = QuantConfig(
         seed=7,
         start_date="2022-01-03",
@@ -19,6 +32,17 @@ def test_synthetic_data_is_reproducible() -> None:
 
 
 def test_synthetic_data_has_required_shape() -> None:
+    """Check generated data meets required columns and basic constraints.
+
+    Args:
+        None.
+
+    Returns:
+        None: Assertion-based test.
+
+    Raises:
+        AssertionError: If generated data violates expected constraints.
+    """
     config = QuantConfig(
         start_date="2022-01-03",
         end_date="2022-06-30",

@@ -1,3 +1,5 @@
+"""Run an end-to-end pipeline check and verify expected output artifacts."""
+
 from quant.backtest.run import run as run_backtest
 from quant.candidates.export import run as export_candidates
 from quant.config import QuantConfig
@@ -8,6 +10,17 @@ from quant.preprocess.process import run as process_data
 
 
 def test_pipeline_writes_expected_outputs(tmp_path) -> None:
+    """Run full stage sequence and assert required artifacts are created.
+
+    Args:
+        tmp_path: Pytest-provided temporary directory fixture.
+
+    Returns:
+        None: Assertion-based test.
+
+    Raises:
+        AssertionError: If expected pipeline artifacts are missing.
+    """
     config = QuantConfig(
         data_root=tmp_path / "data",
         seed=5,

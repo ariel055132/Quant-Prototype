@@ -1,5 +1,7 @@
 """Weekly rebalancing backtest with transaction costs."""
 
+# File role: simulate portfolio performance and write backtest artifacts.
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -15,13 +17,37 @@ from quant.strategy.selection import select_weekly_positions
 
 
 def _max_drawdown(equity: pd.Series) -> float:
+    """Compute maximum drawdown from an equity curve series.
+
+    Args:
+        equity: Series of equity values ordered by time.
+
+    Returns:
+        float: Minimum drawdown value as a negative decimal.
+
+    Raises:
+        None.
+    """
     running_max = equity.cummax()
     drawdown = equity / running_max - 1.0
     return float(drawdown.min())
 
 
 def run_backtest(prices: pd.DataFrame, factors: pd.DataFrame, config: QuantConfig) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
-    """Simulate weekly top-N momentum strategy with equal weights."""
+    """Simulate weekly top-N momentum strategy with equal weighting.
+
+    Args:
+        prices: Processed OHLCV dataframe used for realized returns.
+        factors: Factor dataframe used for filtering and ranking.
+        config: Runtime configuration with strategy and cost parameters.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+            Positions dataframe, trades dataframe, equity-curve dataframe, and summary.
+
+    Raises:
+        DataValidationError: If positions or equity results are empty.
+    """
     prices = prices.copy()
     prices["date"] = pd.to_datetime(prices["date"])
 
@@ -135,7 +161,20 @@ def run_backtest(prices: pd.DataFrame, factors: pd.DataFrame, config: QuantConfi
 
 
 def run(config: QuantConfig) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
-    """Execute backtest stage and write portfolio outputs."""
+    """Run backtest stage and write portfolio artifacts.
+
+    Args:
+        config: Runtime configuration with input/output paths.
+
+    Returns:
+        tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+            Positions dataframe, trades dataframe, equity-curve dataframe, and summary.
+
+    Raises:
+        FileNotFoundError: If required processed or factor artifacts are missing.
+        EmptyDatasetError: If required parquet artifacts are empty.
+        DataValidationError: If backtest cannot produce valid positions or equity curve.
+    """
     config.ensure_data_dirs()
     prices = read_parquet_required(config.processed_prices_path)
     factors = read_parquet_required(config.factors_path)

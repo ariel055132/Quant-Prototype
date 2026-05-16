@@ -1,5 +1,7 @@
 """Factor effectiveness diagnostics for research safety checks."""
 
+# File role: compute factor diagnostics and write evaluation artifacts.
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -13,12 +15,35 @@ from quant.io_utils import read_parquet_required, write_json, write_parquet
 
 
 def _weekly_rebalance_dates(dates: pd.Series) -> pd.Series:
+    """Compute weekly rebalance dates for diagnostics.
+
+    Args:
+        dates: Series of observation dates.
+
+    Returns:
+        pd.Series: Last date in each Friday-anchored week.
+
+    Raises:
+        None.
+    """
     frame = pd.DataFrame({"date": pd.to_datetime(dates).drop_duplicates().sort_values()})
     frame["week"] = frame["date"].dt.to_period("W-FRI")
     return frame.groupby("week", as_index=False)["date"].max()["date"]
 
 
 def _factor_turnover(df: pd.DataFrame, factor_col: str) -> float:
+    """Estimate weekly turnover of the top factor bucket.
+
+    Args:
+        df: Dataframe with date, symbol, and factor columns.
+        factor_col: Factor column name used for ranking.
+
+    Returns:
+        float: Mean turnover of top-bucket constituents across weeks.
+
+    Raises:
+        None.
+    """
     weekly_dates = _weekly_rebalance_dates(df["date"])
     prev_top: set[str] | None = None
     turnovers: list[float] = []
@@ -42,6 +67,18 @@ def _factor_turnover(df: pd.DataFrame, factor_col: str) -> float:
 
 
 def _compute_quantiles(df: pd.DataFrame, factor_col: str) -> pd.DataFrame:
+    """Compute per-date forward return averages by factor quantile.
+
+    Args:
+        df: Dataframe including date, factor values, and next_return_5d.
+        factor_col: Factor column to quantile-bin each date.
+
+    Returns:
+        pd.DataFrame: Quantile return table with date, quantile, and mean return.
+
+    Raises:
+        None.
+    """
     out_frames: list[pd.DataFrame] = []
 
     for date, g in df.groupby("date"):
@@ -77,7 +114,20 @@ def _compute_quantiles(df: pd.DataFrame, factor_col: str) -> pd.DataFrame:
 
 
 def evaluate_factor(factors: pd.DataFrame, factor_col: str, min_samples: int) -> tuple[dict, pd.DataFrame, pd.DataFrame]:
-    """Evaluate a factor with coverage, IC, rank-IC, spread, and turnover diagnostics."""
+    """Evaluate factor quality with coverage and predictive diagnostics.
+
+    Args:
+        factors: Factor dataframe containing date, symbol, close, and factor column.
+        factor_col: Name of factor column to evaluate.
+        min_samples: Minimum non-null sample count required for evaluation.
+
+    Returns:
+        tuple[dict, pd.DataFrame, pd.DataFrame]:
+            Summary dictionary, per-date IC dataframe, and quantile-return dataframe.
+
+    Raises:
+        DataValidationError: If required columns are missing or samples are insufficient.
+    """
     required = {"date", "symbol", "close", factor_col}
     missing = sorted(required.difference(factors.columns))
     if missing:
@@ -150,7 +200,20 @@ def evaluate_factor(factors: pd.DataFrame, factor_col: str, min_samples: int) ->
 
 
 def run(config: QuantConfig, factor_col: str = "momentum_score") -> tuple[dict, pd.DataFrame, pd.DataFrame]:
-    """Execute factor evaluation stage and write diagnostics artifacts."""
+    """Run factor evaluation stage and persist diagnostic outputs.
+
+    Args:
+        config: Runtime configuration with factor and output paths.
+        factor_col: Factor column name to evaluate.
+
+    Returns:
+        tuple[dict, pd.DataFrame, pd.DataFrame]:
+            Summary dictionary, IC table, and quantile table.
+
+    Raises:
+        FileNotFoundError: If factors artifact is missing.
+        DataValidationError: If factor data cannot be evaluated safely.
+    """
     config.ensure_data_dirs()
     factors = read_parquet_required(config.factors_path)
     summary, ic_df, quantiles = evaluate_factor(

@@ -1,5 +1,7 @@
 """Weekly candidate export for manual review."""
 
+# File role: build and export latest or specified weekly candidate lists.
+
 from __future__ import annotations
 
 import pandas as pd
@@ -12,7 +14,18 @@ from quant.strategy.selection import select_weekly_positions
 
 
 def export_candidates(config: QuantConfig, rebalance_date: str | None = None) -> pd.DataFrame:
-    """Export latest or specific rebalance-date candidates."""
+    """Export weekly candidate rows for the latest or requested date.
+
+    Args:
+        config: Runtime configuration with factor and signal paths.
+        rebalance_date: Optional YYYY-MM-DD rebalance date to export.
+
+    Returns:
+        pd.DataFrame: Candidate dataframe sorted by rank.
+
+    Raises:
+        DataValidationError: If no candidates are available or date is invalid.
+    """
     factors = read_parquet_required(config.factors_path)
     filtered = apply_filters(factors, config)
     positions = select_weekly_positions(filtered, config.top_n)
@@ -54,6 +67,19 @@ def export_candidates(config: QuantConfig, rebalance_date: str | None = None) ->
 
 
 def run(config: QuantConfig, rebalance_date: str | None = None) -> pd.DataFrame:
-    """Execute candidate export stage."""
+    """Run candidate export stage.
+
+    Args:
+        config: Runtime configuration with output directory settings.
+        rebalance_date: Optional rebalance date filter.
+
+    Returns:
+        pd.DataFrame: Exported candidate dataframe.
+
+    Raises:
+        FileNotFoundError: If factors artifact is missing.
+        EmptyDatasetError: If factors artifact is empty.
+        DataValidationError: If export conditions are invalid.
+    """
     config.ensure_data_dirs()
     return export_candidates(config, rebalance_date=rebalance_date)

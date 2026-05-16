@@ -1,5 +1,7 @@
 """CLI entrypoint for the quant research pipeline."""
 
+# File role: map CLI commands to each pipeline stage runner.
+
 from __future__ import annotations
 
 import argparse
@@ -15,6 +17,17 @@ from quant.report.show import run as show_report
 
 
 def _run_pipeline(config: QuantConfig) -> None:
+    """Execute the full pipeline in the required stage order.
+
+    Args:
+        config: Runtime configuration shared across all stages.
+
+    Returns:
+        None.
+
+    Raises:
+        None.
+    """
     generate_data(config)
     process_data(config)
     build_features(config)
@@ -24,6 +37,17 @@ def _run_pipeline(config: QuantConfig) -> None:
 
 
 def _build_parser() -> argparse.ArgumentParser:
+    """Build the top-level CLI parser and subcommands.
+
+    Args:
+        None.
+
+    Returns:
+        argparse.ArgumentParser: Configured parser for quant commands.
+
+    Raises:
+        None.
+    """
     parser = argparse.ArgumentParser(prog="quant", description="Taiwan equity quant research tool")
 
     subparsers = parser.add_subparsers(dest="group", required=True)
@@ -62,6 +86,17 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> None:
+    """Parse CLI arguments and dispatch to the requested stage command.
+
+    Args:
+        None.
+
+    Returns:
+        None.
+
+    Raises:
+        SystemExit: Raised by argparse on parse or parser error conditions.
+    """
     parser = _build_parser()
     args = parser.parse_args()
 
