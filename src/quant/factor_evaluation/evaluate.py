@@ -12,23 +12,36 @@ import pandas as pd
 from quant.config import QuantConfig
 from quant.exceptions import DataValidationError
 from quant.io_utils import read_parquet_required, write_json, write_parquet
+from quant.strategy.selection import weekly_rebalance_dates
 
 
-def _weekly_rebalance_dates(dates: pd.Series) -> pd.Series:
-    """Compute weekly rebalance dates for diagnostics.
+def _build_next_week_return_frame(factors: pd.DataFrame, factor_col: str) -> pd.DataFrame:
+    """Build a weekly snapshot frame with next-week realized returns.
 
     Args:
-        dates: Series of observation dates.
+        factors: Factor dataframe containing date, symbol, close, and factor values.
+        factor_col: Factor column name to evaluate.
 
     Returns:
-        pd.Series: Last date in each Friday-anchored week.
+        pd.DataFrame: Weekly rows with next_week_return column.
 
     Raises:
-        None.
+        DataValidationError: If required columns are missing.
     """
-    frame = pd.DataFrame({"date": pd.to_datetime(dates).drop_duplicates().sort_values()})
-    frame["week"] = frame["date"].dt.to_period("W-FRI")
-    return frame.groupby("week", as_index=False)["date"].max()["date"]
+    required = {"date", "symbol", "close", factor_col}
+    missing = sorted(required.difference(factors.columns))
+    if missing:
+        raise DataValidationError(f"Missing columns for factor evaluation: {missing}")
+
+    frame = factors[["date", "symbol", "close", factor_col]].copy()
+    frame["date"] = pd.to_datetime(frame["date"])
+    frame = frame.sort_values(["symbol", "date"]).reset_index(drop=True)
+
+    rebalance_dates = set(pd.to_datetime(weekly_rebalance_dates(frame["date"])).tolist())
+    weekly = frame.loc[frame["date"].isin(rebalance_dates)].copy()
+    weekly = weekly.sort_values(["symbol", "date"]).reset_index(drop=True)
+    weekly["next_week_return"] = weekly.groupby("symbol")["close"].shift(-1) / weekly["close"] - 1
+    return weekly
 
 
 def _factor_turnover(df: pd.DataFrame, factor_col: str) -> float:
@@ -44,7 +57,7 @@ def _factor_turnover(df: pd.DataFrame, factor_col: str) -> float:
     Raises:
         None.
     """
-    weekly_dates = _weekly_rebalance_dates(df["date"])
+    weekly_dates = weekly_rebalance_dates(df["date"])
     prev_top: set[str] | None = None
     turnovers: list[float] = []
 
@@ -70,7 +83,7 @@ def _compute_quantiles(df: pd.DataFrame, factor_col: str) -> pd.DataFrame:
     """Compute per-date forward return averages by factor quantile.
 
     Args:
-        df: Dataframe including date, factor values, and next_return_5d.
+        df: Dataframe including date, factor values, and next_week_return.
         factor_col: Factor column to quantile-bin each date.
 
     Returns:
@@ -82,7 +95,7 @@ def _compute_quantiles(df: pd.DataFrame, factor_col: str) -> pd.DataFrame:
     out_frames: list[pd.DataFrame] = []
 
     for date, g in df.groupby("date"):
-        sample = g[["date", factor_col, "next_return_5d"]].dropna()
+        sample = g[["date", factor_col, "next_week_return"]].dropna()
         if len(sample) < 5:
             continue
 
@@ -99,9 +112,9 @@ def _compute_quantiles(df: pd.DataFrame, factor_col: str) -> pd.DataFrame:
             duplicates="drop",
         )
         grouped = (
-            ranked.groupby(["date", "quantile"], as_index=False)["next_return_5d"]
+            ranked.groupby(["date", "quantile"], as_index=False)["next_week_return"]
             .mean()
-            .rename(columns={"next_return_5d": "mean_next_return"})
+            .rename(columns={"next_week_return": "mean_next_return"})
         )
         out_frames.append(grouped)
 
@@ -128,20 +141,12 @@ def evaluate_factor(factors: pd.DataFrame, factor_col: str, min_samples: int) ->
     Raises:
         DataValidationError: If required columns are missing or samples are insufficient.
     """
-    required = {"date", "symbol", "close", factor_col}
-    missing = sorted(required.difference(factors.columns))
-    if missing:
-        raise DataValidationError(f"Missing columns for factor evaluation: {missing}")
-
-    frame = factors[["date", "symbol", "close", factor_col]].copy()
-    frame["date"] = pd.to_datetime(frame["date"])
-    frame = frame.sort_values(["symbol", "date"]).reset_index(drop=True)
-    frame["next_return_5d"] = frame.groupby("symbol")["close"].shift(-5) / frame["close"] - 1
+    frame = _build_next_week_return_frame(factors, factor_col)
 
     if frame[factor_col].dropna().empty:
         raise DataValidationError(f"{factor_col} is entirely null and cannot be evaluated")
 
-    valid_pairs = frame[[factor_col, "next_return_5d"]].dropna()
+    valid_pairs = frame[[factor_col, "next_week_return"]].dropna()
     if len(valid_pairs) < min_samples:
         raise DataValidationError(
             f"Too few valid samples for {factor_col} evaluation: {len(valid_pairs)} < {min_samples}"
@@ -159,13 +164,22 @@ def evaluate_factor(factors: pd.DataFrame, factor_col: str, min_samples: int) ->
 
     ic_rows: list[dict] = []
     for date, g in frame.groupby("date"):
-        sample = g[[factor_col, "next_return_5d"]].dropna()
+        sample = g[[factor_col, "next_week_return"]].dropna()
         if len(sample) < 3:
             ic_rows.append({"date": date, "ic": np.nan, "rank_ic": np.nan})
             continue
 
-        ic_val = sample[factor_col].corr(sample["next_return_5d"])
-        rank_ic_val = sample[factor_col].rank().corr(sample["next_return_5d"].rank())
+        if sample[factor_col].std() == 0 or sample["next_week_return"].std() == 0:
+            ic_val = np.nan
+        else:
+            ic_val = sample[factor_col].corr(sample["next_week_return"])
+
+        ranked_factor = sample[factor_col].rank()
+        ranked_return = sample["next_week_return"].rank()
+        if ranked_factor.std() == 0 or ranked_return.std() == 0:
+            rank_ic_val = np.nan
+        else:
+            rank_ic_val = ranked_factor.corr(ranked_return)
         ic_rows.append({"date": date, "ic": ic_val, "rank_ic": rank_ic_val})
 
     ic_df = pd.DataFrame(ic_rows)
@@ -195,6 +209,7 @@ def evaluate_factor(factors: pd.DataFrame, factor_col: str, min_samples: int) ->
         "average_rank_ic": float(ic_df["rank_ic"].mean(skipna=True)),
         "top_bottom_spread": top_bottom,
         "factor_turnover": turnover,
+        "evaluation_horizon": "next_week_return",
     }
     return summary, ic_df, quantiles
 

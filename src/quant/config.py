@@ -35,6 +35,10 @@ class QuantConfig:
     min_avg_volume: float = 500_000.0
     min_factor_samples: int = 30
     rebalance_frequency: str = "weekly"
+    random_walk_no_drift: float = 0.012
+    market_drift: float = 0.0003
+    momentum_regime: float = 0.30
+    mean_reversion_regime: float = 0.18
 
     @property
     def raw_prices_path(self) -> Path:

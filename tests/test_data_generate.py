@@ -3,7 +3,7 @@
 import pandas as pd
 
 from quant.config import QuantConfig
-from quant.data.generate import REQUIRED_COLUMNS, generate_synthetic_prices
+from quant.data.generate import REQUIRED_COLUMNS, SYNTHETIC_PROPERTY_COLUMNS, generate_synthetic_prices
 
 
 def test_synthetic_data_is_reproducible() -> None:
@@ -50,9 +50,11 @@ def test_synthetic_data_has_required_shape() -> None:
     )
     df = generate_synthetic_prices(config)
 
-    assert list(df.columns) == REQUIRED_COLUMNS
+    for col in REQUIRED_COLUMNS + SYNTHETIC_PROPERTY_COLUMNS:
+        assert col in df.columns
     assert df["symbol"].nunique() >= 3
     assert df["date"].nunique() >= 100
     assert (df[["open", "high", "low", "close"]] > 0).all().all()
     assert (df["volume"] >= 0).all()
     assert not df.duplicated(subset=["date", "symbol"]).any()
+    assert df[SYNTHETIC_PROPERTY_COLUMNS].notna().all().all()

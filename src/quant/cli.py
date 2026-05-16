@@ -5,11 +5,14 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from quant.backtest.run import run as run_backtest
 from quant.candidates.export import run as export_candidates
 from quant.config import QuantConfig
 from quant.data.generate import run as generate_data
+from quant.experiments.component_test import run_component_tests
+from quant.experiments.momentum_regime_checks import run_momentum_regime_checks
 from quant.factor_evaluation.evaluate import run as evaluate_factors
 from quant.features.build import run as build_features
 from quant.preprocess.process import run as process_data
@@ -82,6 +85,18 @@ def _build_parser() -> argparse.ArgumentParser:
     pipeline_sub = pipeline_parser.add_subparsers(dest="action", required=True)
     pipeline_sub.add_parser("run")
 
+    experiments_parser = subparsers.add_parser("experiments")
+    experiments_sub = experiments_parser.add_subparsers(dest="action", required=True)
+    component_parser = experiments_sub.add_parser("component-test")
+    component_parser.add_argument("--output-csv", default=None)
+    component_parser.add_argument("--seeds", type=int, default=3)
+
+    momentum_parser = experiments_sub.add_parser("momentum-regime-check")
+    momentum_parser.add_argument("--output-csv", default=None)
+    momentum_parser.add_argument("--seeds", type=int, default=3)
+    momentum_parser.add_argument("--top-n-values", nargs="+", type=int, default=[3, 5, 10, 20])
+    momentum_parser.add_argument("--transaction-costs", nargs="+", type=float, default=None)
+
     return parser
 
 
@@ -132,6 +147,24 @@ def main() -> None:
 
     if args.group == "pipeline" and args.action == "run":
         _run_pipeline(config)
+        return
+
+    if args.group == "experiments" and args.action == "component-test":
+        output_csv = Path(args.output_csv) if args.output_csv else None
+        run_component_tests(config, output_csv=output_csv, n_seeds=args.seeds)
+        return
+
+    if args.group == "experiments" and args.action == "momentum-regime-check":
+        output_csv = Path(args.output_csv) if args.output_csv else None
+        top_n_values = tuple(args.top_n_values)
+        transaction_costs = tuple(args.transaction_costs) if args.transaction_costs is not None else None
+        run_momentum_regime_checks(
+            config,
+            output_csv=output_csv,
+            n_seeds=args.seeds,
+            top_n_values=top_n_values,
+            transaction_cost_values=transaction_costs,
+        )
         return
 
     parser.error("Unknown command")

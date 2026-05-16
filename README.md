@@ -36,6 +36,7 @@ quant factors evaluate
 quant backtest run
 quant candidates export
 quant report show
+quant experiments component-test
 ```
 
 ## Data Outputs
@@ -128,4 +129,72 @@ make shell
 
 ```bash
 podman-compose -f podman-compose.yml run --rm quant-test
+```
+
+## Component-By-Component Synthetic Tests
+
+Run isolated tests where only one synthetic return component is active at a time:
+
+```bash
+quant experiments component-test
+```
+
+Run multiple seeds per scenario (recommended):
+
+```bash
+quant experiments component-test --seeds 5
+```
+
+The command writes a consolidated CSV by default:
+
+- `data/experiments/component_tests/component_test_summary.csv`
+- `data/experiments/component_tests/component_test_summary_by_seed.csv`
+
+`component_test_summary.csv` contains aggregated statistics (`*_mean`, `*_std`) across seeds,
+while `component_test_summary_by_seed.csv` keeps one row per component + mode + seed.
+
+Each component now includes four strategy scenarios:
+
+- `momentum_top_n_filtered` (main strategy)
+- `equal_weight_all` (benchmark)
+- `random_top_n_all` (benchmark)
+- `random_top_n_filtered` (benchmark)
+
+The CSV also includes comparison columns against the momentum strategy:
+
+- `delta_final_equity_vs_momentum`
+- `delta_total_return_vs_momentum`
+- `delta_cagr_vs_momentum`
+- `delta_sharpe_vs_momentum`
+- `delta_max_drawdown_vs_momentum`
+
+Within each component + seed run, all strategy modes are aligned to the same shared rebalance window before backtest,
+so benchmark comparisons start from the same date.
+
+To write to a custom CSV path:
+
+```bash
+quant experiments component-test --output-csv data/experiments/my_component_results.csv
+```
+
+When `--output-csv` is provided, the by-seed file is also written next to it using the `_by_seed.csv` suffix.
+
+## Momentum-Regime Focused Checks
+
+Run focused checks only for `momentum_regime` to verify cost impact and top-N sensitivity:
+
+```bash
+quant experiments momentum-regime-check --seeds 3 --top-n-values 3 5 10 20
+```
+
+This command automatically includes `transaction_cost=0` and the configured baseline transaction cost,
+and writes:
+
+- `data/experiments/momentum_regime_checks/momentum_regime_checks_by_seed.csv`
+- `data/experiments/momentum_regime_checks/momentum_regime_checks_by_seed_summary.csv`
+
+You can override transaction costs explicitly:
+
+```bash
+quant experiments momentum-regime-check --transaction-costs 0 0.001
 ```
