@@ -14,3 +14,9 @@ data/factor_evaluation/*.parquet
 data/signals/*.parquet
 data/backtests/*.json
 data/backtests/*.parquet
+data/experiments/*.json
+data/experiments/*.parquet
+data/experiments/*.csv
+data/experiments/**/*.json
+data/experiments/**/*.parquet
+data/experiments/**/*.csv
